@@ -13,14 +13,12 @@ Classificar as tabelas atualmente existentes no PostgreSQL/Supabase para prepara
 
 A inspeção de `information_schema` e das constraints do PostgreSQL encontrou:
 
-- 80? estruturas no `public` — **contagem a confirmar na próxima inspeção**, pois o inventário nominal retornado contém 72 tabelas `DEPxxx`/auxiliares mais estruturas adicionais;
-- 1 tabela no schema `soselantes`;
-- nenhuma `FOREIGN KEY` física nas tabelas analisadas;
-- as chaves existentes em tabelas complementares são independentes do ERP.
+- **72 tabelas no `public`**;
+- **1 tabela no schema `soselantes`**;
+- nenhuma `FOREIGN KEY` física registrada nas tabelas analisadas;
+- as chaves existentes em algumas tabelas complementares são independentes do ERP.
 
-### Correção importante
-
-A contagem nominal completa retornada pela consulta deve ser usada como fonte para a próxima auditoria. O ponto principal desta etapa é que **não devemos assumir que toda tabela `DEPxxx` atualmente presente no `public` seja necessariamente uma tabela que precisa permanecer no destino final sem confronto com o Firebird**.
+O ponto principal desta etapa é que **não devemos assumir que toda tabela `DEPxxx` atualmente presente no `public` seja necessariamente uma tabela que precisa permanecer no destino final sem confronto com o Firebird**.
 
 ## Classificação preliminar
 
@@ -62,7 +60,7 @@ As demais `depxxx` devem ser tratadas inicialmente como **candidatas a ERP**, at
 
 O levantamento mostrou que as tabelas `depxxx` atualmente no `public` não possuem `PRIMARY KEY` nem `FOREIGN KEY` físicas registradas no PostgreSQL.
 
-Isso não significa que o Firebird não possua chaves, índices ou regras equivalentes. Significa apenas que **a primeira cópia para o PostgreSQL não reproduziu essas constraints**, ou elas não foram criadas no destino.
+Isso não significa que o Firebird não possua chaves, índices ou regras equivalentes. Significa apenas que a primeira cópia para o PostgreSQL não reproduziu essas constraints, ou elas não foram criadas no destino.
 
 Esse ponto é importante para a nova cópia.
 
