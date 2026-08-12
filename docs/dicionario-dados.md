@@ -1,484 +1,339 @@
 # Dicionário de Dados — Só Selantes
 
-**Versão:** 1.0  
-**Data:** 11/08/2026  
-**Status:** Base técnica inicial  
-**Banco de destino:** Supabase / PostgreSQL  
-**Origem principal:** ERP Firebird
+**Versão:** 1.1  
+**Data da auditoria:** 12/08/2026  
+**Status:** Em construção — núcleo crítico confirmado diretamente no Firebird 2.0  
+**Origem:** `DEPOSITO.FDB`  
+**Destino:** Supabase / PostgreSQL
 
 ---
 
 ## 1. Objetivo
 
-Este documento é a referência técnica inicial para o dicionário de dados do projeto Só Selantes.
+Este documento é a referência técnica do dicionário de dados do projeto Só Selantes. A estrutura física deve ser derivada do banco Firebird real; significado funcional e relacionamentos que não estejam declarados como constraints devem ser identificados separadamente.
 
-Ele registra a estrutura conhecida do ERP, as principais entidades comerciais, regras semânticas já validadas e a separação entre dados brutos do ERP e dados complementares criados pelo projeto.
-
-> **Regra documental:** quando o significado de um campo, chave ou relacionamento ainda não tiver sido confirmado no Firebird, ele deve permanecer explicitamente como hipótese/pendência de validação. Não devemos inventar estrutura.
-
----
+> **Regra documental:** não inventar significado, chave ou relacionamento. O que ainda não foi confirmado deve permanecer como `A confirmar`.
 
 ## 2. Arquitetura de dados
 
-A arquitetura definida para o projeto separa os dados em duas camadas:
-
 ### `public`
 
-Deve representar a **cópia do ERP Firebird** no PostgreSQL/Supabase.
-
-Princípios:
-
-- origem Firebird;
-- estrutura próxima à origem;
-- nomes das tabelas padronizados para minúsculas no PostgreSQL;
-- pode ser apagado e recopiado quando for necessário reconstruir a base do ERP;
-- não deve receber permanentemente regras ou dados exclusivos do projeto.
+Representa a cópia do ERP Firebird no PostgreSQL/Supabase. Deve permanecer próxima da origem e pode ser reconstruída quando necessário.
 
 ### `soselantes`
 
-Deve representar a **camada complementar de negócio e inteligência**.
+Representa dados complementares e inteligência do projeto: equivalências, enriquecimentos, classificações, metas e regras próprias.
 
-Deve concentrar:
+### Regra de sincronização
 
-- equivalências históricas;
-- enriquecimentos;
-- classificações;
-- metas;
-- regras de negócio;
-- dados complementares;
-- estruturas produzidas pelo projeto.
-
-Isso permite reconstruir o `public` sem perder informações próprias do projeto.
+A rotina não deve copiar automaticamente toda tabela existente no Firebird. Deve existir uma lista explícita das tabelas pertencentes ao ERP.
 
 ---
 
-## 3. Principais entidades do ERP
+## 3. Classificação das tabelas encontradas
 
-| Tabela | Função conhecida | Importância |
-|---|---|---:|
-| `DEP001` | Produtos | Alta |
-| `DEP011` | Clientes | Alta |
-| `DEP013` | Vendedores/representantes | Alta |
-| `DEP021` | Cabeçalho dos pedidos | Crítica |
-| `DEP022` | Itens dos pedidos | Crítica |
+A consulta de metadados do Firebird confirmou **65 tabelas `DEPxxx`** no banco.
 
-Essas cinco tabelas formam o núcleo inicial para as análises comerciais e para a futura rotina de sincronização.
+| Tabela | Campos |
+|---|---:|
+| DEP001 | 43 |
+| DEP002 | 3 |
+| DEP003 | 3 |
+| DEP006 | 3 |
+| DEP007 | 4 |
+| DEP009 | 2 |
+| DEP010 | 22 |
+| DEP011 | 45 |
+| DEP012 | 2 |
+| DEP013 | 9 |
+| DEP014 | 12 |
+| DEP016 | 3 |
+| DEP017 | 6 |
+| DEP018 | 6 |
+| DEP019 | 12 |
+| DEP020 | 2 |
+| DEP021 | 42 |
+| DEP022 | 13 |
+| DEP023 | 7 |
+| DEP024 | 16 |
+| DEP025 | 16 |
+| DEP026 | 5 |
+| DEP027 | 17 |
+| DEP028 | 14 |
+| DEP031 | 22 |
+| DEP032 | 16 |
+| DEP033 | 23 |
+| DEP034 | 2 |
+| DEP035 | 3 |
+| DEP036 | 15 |
+| DEP037 | 2 |
+| DEP039 | 9 |
+| DEP040 | 35 |
+| DEP041 | 14 |
+| DEP042 | 7 |
+| DEP043 | 31 |
+| DEP044 | 15 |
+| DEP045 | 16 |
+| DEP046 | 11 |
+| DEP047 | 12 |
+| DEP048 | 2 |
+| DEP049 | 2 |
+| DEP052 | 8 |
+| DEP056 | 12 |
+| DEP057 | 7 |
+| DEP059 | 6 |
+| DEP060 | 22 |
+| DEP061 | 14 |
+| DEP062 | 8 |
+| DEP063 | 6 |
+| DEP064 | 8 |
+| DEP065 | 2 |
+| DEP066 | 8 |
+| DEP067 | 11 |
+| DEP068 | 4 |
+| DEP069 | 9 |
+| DEP070 | 8 |
+| DEP071 | 12 |
+| DEP072 | 11 |
+| DEP073 | 2 |
+| DEP074 | 3 |
+| DEP075 | 10 |
+| DEP080 | 30 |
+| DEP083 | 5 |
+
+Além dessas, existem tabelas que **não pertencem ao ERP** e devem ficar fora da cópia ERP→`public`:
+
+- `METAS_VENDEDORES`
+- `VENDEDORES_FILHOS`
+- `VENDEDORES_PAIS`
+
+As três foram criadas pelo projeto para outro aplicativo.
+
+Também existe `DUAL`, que é uma estrutura técnica do Firebird e não uma entidade comercial do ERP.
 
 ---
 
-## 4. Modelo conceitual principal
+## 4. Núcleo crítico confirmado
+
+| Tabela | Função conhecida | PK física | FK física | Índices secundários |
+|---|---|---|---|---|
+| `DEP001` | Produtos | `DEP001` | Nenhuma | Nenhum |
+| `DEP011` | Clientes | `DEP011` | Nenhuma | Nenhum |
+| `DEP013` | Vendedores/representantes | `DEP013` | Nenhuma | Nenhum |
+| `DEP021` | Cabeçalho de pedidos | `DEP021` | Nenhuma | Nenhum |
+| `DEP022` | Itens de pedidos | `(DEP021, ITEM)` | Nenhuma | Nenhum |
+
+As PKs foram confirmadas pelas constraints do Firebird:
+
+- `DEP001` → `INTEG_2`
+- `DEP011` → `INTEG_15`
+- `DEP013` → `INTEG_19`
+- `DEP021` → `INTEG_33`
+- `DEP022` → `INTEG_36`
+
+Os índices observados nessas cinco tabelas são somente os índices das respectivas PKs:
+
+- `DEP001` → `RDB$PRIMARY1`
+- `DEP011` → `RDB$PRIMARY7`
+- `DEP013` → `RDB$PRIMARY9`
+- `DEP021` → `RDB$PRIMARY16`
+- `DEP022` → `RDB$PRIMARY17` sobre `DEP021, ITEM`
+
+Todos estavam ativos.
+
+### FKs do ERP
+
+A consulta global de Foreign Keys encontrou somente FKs em `VENDEDORES_FILHOS`:
+
+- `FK_FILHOS_DEP013` → campo `DEP013`
+- `FK_FILHOS_PAI` → campo `VENDEDOR_PAI`
+
+Portanto, **não foram encontradas FKs físicas nas cinco tabelas críticas nem nas demais tabelas `DEPxxx` consultadas globalmente**. As relações comerciais do ERP são, em grande parte, relações lógicas mantidas pela aplicação.
+
+---
+
+## 5. Modelo lógico conhecido
 
 ```text
-DEP013
-  │ vendedor
-  ▼
-DEP021 ───────────► DEP011
- pedido              cliente
-  │
-  │ itens
-  ▼
-DEP022 ───────────► DEP001
-                     produto
+DEP013 (vendedor)
+      │
+      │ DEP021.DEP013
+      ▼
+DEP021 (pedido)
+   │             │
+   │ DEP011      │ DEP022.DEP021
+   ▼             ▼
+DEP011        DEP022 (itens)
+                 │
+                 │ DEP001
+                 ▼
+              DEP001
+              (produto)
 ```
 
-Relacionamentos funcionais conhecidos:
+Esses relacionamentos são **lógicos/conceituais**, não FKs físicas no Firebird:
 
-- `DEP021.DEP011` → cliente `DEP011.DEP011`;
-- `DEP021.DEP013` → vendedor `DEP013.DEP013`;
-- `DEP022.DEP021` → pedido `DEP021.DEP021`;
-- `DEP022.DEP001` → produto `DEP001.DEP001`.
+- `DEP021.DEP011` → `DEP011.DEP011`
+- `DEP021.DEP013` → `DEP013.DEP013`
+- `DEP022.DEP021` → `DEP021.DEP021`
+- `DEP022.DEP001` → `DEP001.DEP001`
 
-> Esses são relacionamentos funcionais/conceituais conhecidos. A existência de `FOREIGN KEY` física no PostgreSQL ou no Firebird ainda deve ser confirmada.
-
----
-
-# 5. DEP001 — Produtos
-
-**Função:** cadastro mestre de produtos.
-
-**Uso no projeto:** análise de portfólio, vendas por produto, preços, custos e normalização histórica.
-
-A estrutura detalhada de campos e tipos deve ser confirmada diretamente no Firebird antes de ser considerada definitiva.
-
-### Regra de referência e cor
-
-Foi definida a seguinte regra comercial para referências com hífen:
-
-```text
-SSAC-1
-SSAC-2
-SSAC-3
-```
-
-Os caracteres antes de `-` representam o produto-base e a parte numérica posterior representa a cor.
-
-Portanto, para análises de produto:
-
-> **Cor não deve ser tratada como produto independente.**
-
-Existem referências sem hífen que podem conter cor. Essas exceções precisam ser explicitamente validadas e não devem ser inferidas automaticamente.
+A ausência de FK física deve ser preservada como característica do legado, sem impedir que o modelo PostgreSQL adote integridade referencial quando isso for seguro e deliberado.
 
 ---
 
-# 6. DEP011 — Clientes
+# 6. DEP001 — Produtos
 
-**Função:** cadastro de clientes do ERP.
+**Função conhecida:** cadastro de produtos.
 
-Campos e tipos completos ainda devem ser levantados diretamente no Firebird.
+**Campos:** 43.
 
-Informações conhecidas/esperadas incluem:
+**PK:** `DEP001`.
 
-- identificador do cliente;
-- razão social;
-- nome fantasia;
-- endereço;
-- cidade/UF;
-- CEP;
-- CNPJ/CPF;
-- telefones;
-- e-mail;
-- situação cadastral;
-- vendedor relacionado;
-- limite de crédito;
-- datas de cadastro e última compra.
+**Índice secundário:** nenhum identificado.
 
-> A lista acima é uma descrição funcional das informações conhecidas e não deve ser interpretada como inventário definitivo de colunas.
+Regras comerciais já documentadas no projeto incluem a interpretação de referências com hífen, como `SSAC-1`, `SSAC-2`, `SSAC-3`, em que a parte numérica representa a cor. Essa regra é de negócio e não deve ser confundida com a estrutura física do Firebird.
+
+A descrição campo a campo ainda será levantada.
 
 ---
 
-# 7. DEP013 — Vendedores
+# 7. DEP011 — Clientes
 
-**Função:** cadastro de vendedores/representantes do ERP.
+**Função conhecida:** cadastro de clientes.
 
-Informações conhecidas/esperadas incluem:
+**Campos:** 45.
 
-- identificador do vendedor;
-- login;
-- nome completo;
-- situação/ativo;
-- percentual de comissão.
+**PK:** `DEP011`.
 
-### Segurança
+**Índice secundário:** nenhum identificado.
 
-A estrutura histórica do ERP possui campos associados a credenciais/senhas. Esses campos devem ser tratados como **dados sensíveis** e não devem ser expostos por APIs, frontend, relatórios ou integrações de IA.
+A estrutura física completa já foi levantada em parte; a descrição funcional de cada campo será consolidada após o inventário completo.
 
 ---
 
-# 8. DEP021 — Pedidos
+# 8. DEP013 — Vendedores
 
-**Função:** cabeçalho dos pedidos/documentos comerciais.
+**Função conhecida:** cadastro de vendedores/representantes.
 
-**Importância:** crítica.
+**Campos:** 9.
 
-A rotina de notificações e integrações já identificou como regra relevante:
+**PK:** `DEP013`.
+
+**Índice secundário:** nenhum identificado.
+
+Campos relacionados a credenciais, caso existam, devem ser tratados como sensíveis e nunca expostos por APIs, frontend, relatórios ou integrações de IA.
+
+---
+
+# 9. DEP021 — Pedidos
+
+**Função conhecida:** cabeçalho dos pedidos/documentos comerciais.
+
+**Campos:** 42.
+
+**PK:** `DEP021`.
+
+**Índice secundário:** nenhum identificado.
+
+Regra já utilizada pela automação de pedidos do projeto:
 
 ```text
 TIPO = 'PED'
 DATA = data atual
 ```
 
-Essa condição é usada para localizar os pedidos do dia destinados à automação de comunicação.
-
-### Informações conhecidas/esperadas
-
-- identificador do pedido;
-- data e hora;
-- tipo do documento;
-- cliente;
-- vendedor;
-- condição/prazo de pagamento;
-- total;
-- total de produtos;
-- desconto;
-- frete;
-- observações;
-- situação de faturamento/expedição;
-- data de entrega;
-- informações de baixa/devolução.
-
-> `DEP021` representa o pedido/documento comercial. Não devemos assumir que `DEP021.TOTAL` seja, isoladamente, o faturamento fiscal líquido da empresa.
+Essa regra é de aplicação e não constitui constraint do Firebird.
 
 ---
 
-# 9. DEP022 — Itens dos pedidos
+# 10. DEP022 — Itens dos pedidos
 
-**Função:** itens que compõem os pedidos de `DEP021`.
+**Função conhecida:** itens que compõem os pedidos de `DEP021`.
 
-**Importância:** crítica.
+**Campos:** 13.
 
-Relaciona o pedido ao produto e contém as informações comerciais do item.
+**PK física:** `(DEP021, ITEM)`.
 
-Informações conhecidas/esperadas:
+**Índice:** `RDB$PRIMARY17` sobre `(DEP021, ITEM)`.
 
-- pedido;
-- número/sequência do item;
-- produto;
-- quantidade;
-- unidade;
-- preço unitário;
-- desconto;
-- total;
-- custo;
-- descrição do item.
+### Estrutura física confirmada
 
-### Identificador funcional
+| Posição | Campo |
+|---:|---|
+| 1 | `DEP021` |
+| 2 | `ITEM` |
+| 3 | `DEP001` |
+| 4 | `DEP002` |
+| 5 | `DESCONTO` |
+| 6 | `QUANTIDADE` |
+| 7 | `UNITARIO` |
+| 8 | `TOTAL` |
+| 9 | `UNIDADE` |
+| 10 | `VLR_VISTA` |
+| 11 | `CUSTO` |
+| 12 | `TIPO` |
+| 13 | `DESCRICAO` |
 
-O par abaixo é tratado como identificador funcional do item:
+`DEP021` e `DEP001` são relacionamentos lógicos conhecidos; nenhuma FK física foi encontrada.
+
+---
+
+## 11. Estratégia de sincronização Firebird → Supabase
 
 ```text
-(DEP021, ITEM)
+             ERP / Firebird 2.0
+                     │
+                     ▼
+              lista explícita
+              de tabelas ERP
+                     │
+                     ▼
+              Supabase / public
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+     cópia do ERP        sem customizações
+          │               permanentes
+          ▼
+      consultas /
+      automações
+
+       Supabase / soselantes
+               │
+       dados próprios do projeto
 ```
 
-A confirmação da chave física deve ser feita diretamente na origem.
+A reconstrução do `public` deve preservar o schema `soselantes` e outras estruturas complementares definitivas.
 
 ---
 
-# 10. Outras estruturas do ERP
+## 12. Próxima etapa do levantamento
 
-O banco possui outras tabelas `DEPxxx` relacionadas a cadastro, estoque, documentos fiscais, financeiro e logística.
+O inventário de quantidade de campos das 65 tabelas está confirmado. A próxima extração deve levantar, para **todas as 65 `DEPxxx`**:
 
-Entre as estruturas já identificadas no projeto estão:
+1. campos e posições;
+2. tipos Firebird;
+3. tamanhos/precisão/escala;
+4. nulabilidade;
+5. PKs;
+6. índices;
+7. defaults;
+8. generators/sequences;
+9. triggers;
+10. constraints;
+11. domínios;
+12. descrições funcionais quando puderem ser confirmadas.
 
-| Grupo | Tabelas/estruturas conhecidas |
-|---|---|
-| Cadastros/classificações | `DEP002`, `DEP003`, `DEP006`, `DEP009`, `DEP010`, `DEP012`, `DEP016`, `DEP017`, `DEP018`, `DEP034`, `DEP035`, `DEP037`, `DEP041`, `DEP049`, `DEP065`, `DEP073`, `DEP074` |
-| Estoque/movimentação | `DEP007`, `DEP014`, `DEP023`, `DEP024`, `DEP062`, `DEP066`, `DEP067`, `DEP068`, `DEP069`, `DEP070` |
-| Pedidos/documentos fiscais | `DEP019`, `DEP021`, `DEP022`, `DEP025`, `DEP026`, `DEP031`, `DEP032`, `DEP043`, `DEP044`, `DEP045`, `DEP046`, `DEP048`, `DEP060`, `DEP061`, `DEP080`, `DEP083` |
-| Financeiro | `DEP027`, `DEP028`, `DEP033`, `DEP036`, `DEP039`, `DEP040`, `DEP047`, `DEP057`, `DEP059`, `DEP080` |
-| Logística | `DEP075`, `DEP083` |
-
-A função detalhada dessas tabelas deve ser validada conforme forem incorporadas às análises do projeto.
-
----
-
-# 11. Dados complementares do projeto
-
-Algumas estruturas já utilizadas durante o desenvolvimento não pertencem ao ERP e devem ser tratadas como complementares.
-
-Exemplos identificados anteriormente:
-
-- `cidades_info` — enriquecimento geográfico/comercial;
-- `metas_mensais` — metas comerciais por cidade/período;
-- `metas_vendedores` — metas por vendedor;
-- `staging_cidade_coords` — staging de coordenadas;
-- `staging_cidade_regiao` — staging de classificação regional;
-- `vendedores_filhos` — hierarquia comercial;
-- `vendedores_pais` — dados complementares de comunicação/hierarquia.
-
-### Regra arquitetural
-
-Essas estruturas não devem ser consideradas parte da cópia bruta do ERP.
-
-Quando o `public` for reconstruído integralmente a partir do Firebird, estruturas complementares devem permanecer/migrar para o schema `soselantes` quando fizerem parte definitiva da aplicação.
+Depois disso será produzido o mapa definitivo **Firebird → PostgreSQL/Supabase**.
 
 ---
 
-# 12. Produto e equivalências históricas
+## 13. Princípios documentais
 
-O projeto possui uma camada específica para equivalências entre referências históricas e atuais.
-
-Tabela:
-
-```text
-soselantes.produto_referencia_historica
-```
-
-### Regra fundamental
-
-Somente equivalências **explicitamente validadas** podem ser usadas para consolidar produtos históricos.
-
-Não inferir equivalência apenas por:
-
-- nome parecido;
-- prefixo semelhante;
-- descrição;
-- embalagem;
-- aplicação presumida.
-
-### Equivalências já validadas
-
-| Referência histórica | Referência atual |
-|---|---|
-| `SS10` | `DM40` |
-| `SSUG` | `DOT40` |
-| `PXP` | `DOT40` |
-| `PMX` | `DOT40` |
-
----
-
-# 13. Pedido, faturamento e devolução
-
-Esses conceitos devem permanecer separados.
-
-- **Pedido:** estrutura comercial, principalmente `DEP021` + `DEP022`.
-- **Faturamento fiscal:** deve ser analisado nas estruturas de notas/documentos fiscais do ERP, como `DEP043`/`DEP044` e demais tabelas relacionadas.
-- **Devolução:** deve considerar as estruturas e regras específicas do ERP.
-
-Não utilizar simplesmente o total de pedidos como sinônimo de faturamento fiscal sem validar a regra de negócio.
-
----
-
-# 14. Cliente e geografia
-
-O cadastro de clientes contém cidade e UF, mas o projeto também utiliza estruturas complementares com código IBGE.
-
-Para análises geográficas robustas, o modelo futuro deverá possuir uma camada de normalização que associe o cadastro comercial ao código IBGE.
-
-Isso será importante para:
-
-- metas por cidade;
-- potencial de mercado;
-- análise de crescimento;
-- distribuição territorial;
-- DDD;
-- regiões comerciais.
-
----
-
-# 15. Dados sensíveis
-
-A base pode conter:
-
-- CNPJ/CPF;
-- telefones;
-- e-mails;
-- informações financeiras;
-- credenciais/senhas do ERP.
-
-Esses dados devem receber tratamento apropriado durante sincronização, APIs, logs, relatórios e integrações com IA.
-
-Campos de credenciais nunca devem ser disponibilizados para frontend ou endpoints públicos.
-
----
-
-# 16. Estratégia de sincronização
-
-A arquitetura de referência é:
-
-```text
-ERP Firebird
-    │
-    ▼
-Extração
-    │
-    ▼
-Supabase / public
-    │
-    ├── dados brutos do ERP
-    └── sem regras complementares permanentes
-
-Supabase / soselantes
-    │
-    ├── equivalências
-    ├── enriquecimentos
-    ├── classificações
-    ├── metas
-    └── inteligência comercial
-```
-
-### Nova cópia limpa
-
-Quando a estrutura do ERP for recopiada:
-
-1. validar a origem Firebird;
-2. limpar/recriar o conteúdo destinado ao `public`;
-3. importar estrutura e dados;
-4. validar quantidade de tabelas;
-5. validar quantidade de registros;
-6. validar tabelas críticas;
-7. validar campos críticos;
-8. verificar relacionamentos funcionais;
-9. executar testes de consistência;
-10. só então reativar as rotinas dependentes.
-
-O schema `soselantes` deve ser preservado.
-
----
-
-# 17. Próxima etapa: dicionário físico definitivo
-
-Depois da nova cópia limpa do Firebird, o dicionário deverá evoluir para uma matriz completa contendo, para cada campo:
-
-| Informação | Exemplo |
-|---|---|
-| Tabela | `DEP021` |
-| Campo Firebird | `DEP021` |
-| Campo PostgreSQL | `dep021` |
-| Tipo Firebird | `INTEGER` |
-| Tipo PostgreSQL | `integer` |
-| Nulo | Sim/Não |
-| Default | valor/default |
-| PK | Sim/Não |
-| FK | tabela/campo |
-| Índice | nome do índice |
-| Descrição | significado funcional |
-| Regra | regra de negócio |
-| Observação | pendência/particularidade |
-
-Essa etapa deve ser gerada a partir da estrutura real, e não por inferência manual.
-
----
-
-# 18. Pendências de validação
-
-Ainda precisam ser confirmados diretamente no Firebird:
-
-- tipos originais de todos os campos;
-- chaves primárias;
-- chaves estrangeiras;
-- índices;
-- triggers;
-- generators/sequences;
-- constraints;
-- domínios;
-- valores possíveis dos campos de status;
-- códigos possíveis de `TIPO`;
-- regras de cancelamento;
-- regras de devolução;
-- regras de faturamento;
-- regras de cálculo de desconto;
-- regras de frete;
-- regras de comissão;
-- relacionamento completo com cidades;
-- relacionamento entre pedidos e notas.
-
-Esses itens ficam explicitamente marcados como **VALIDAR** até que a origem seja inspecionada.
-
----
-
-# 19. Classificação documental
-
-### DECIDIDO
-
-- `public` representa a cópia do ERP.
-- `soselantes` representa dados complementares do projeto.
-- Dados complementares não devem depender de alterações permanentes no `public`.
-- Equivalências históricas só são válidas quando explicitamente confirmadas.
-- Cor não deve ser tratada como produto independente nas análises de produto.
-
-### VALIDAR
-
-- Chaves e constraints físicas.
-- Tipos originais Firebird.
-- Significado detalhado de campos ainda não confirmados.
-- Mapeamento completo Firebird → PostgreSQL.
-- Separação definitiva entre pedido, faturamento e devolução.
-
----
-
-# 20. Documentos relacionados
-
-```text
-docs/arquitetura-dados.md
-docs/sincronizacao-firebird.md
-```
-
-Este documento deve ser atualizado sempre que uma nova estrutura ou regra de dados for validada.
-
----
-
-# 21. Histórico de versões
-
-| Versão | Data | Alteração |
-|---|---|---|
-| 1.0 | 11/08/2026 | Criação/atualização do dicionário técnico, consolidando entidades principais, arquitetura `public`/`soselantes`, regras já validadas e pendências de confirmação no Firebird |
+- **Confirmado:** veio diretamente do Firebird ou de regra de negócio já validada.
+- **Lógico:** relacionamento ou significado utilizado pela aplicação, sem constraint física correspondente.
+- **A confirmar:** ainda não há evidência suficiente.
+- Não transformar hipótese em documentação definitiva.
+- Não tratar tabelas de outros aplicativos como tabelas do ERP.
+- Não alterar o Firebird durante o levantamento estrutural.
