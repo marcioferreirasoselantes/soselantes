@@ -1,8 +1,8 @@
 # Dicionário de Dados — Só Selantes
 
-**Versão:** 1.1  
+**Versão:** 1.2  
 **Data da auditoria:** 12/08/2026  
-**Status:** Em construção — núcleo crítico confirmado diretamente no Firebird 2.0  
+**Status:** Em construção — inventário de campos confirmado diretamente no Firebird 2.0  
 **Origem:** `DEPOSITO.FDB`  
 **Destino:** Supabase / PostgreSQL
 
@@ -30,9 +30,9 @@ A rotina não deve copiar automaticamente toda tabela existente no Firebird. Dev
 
 ---
 
-## 3. Classificação das tabelas encontradas
+## 3. Inventário das tabelas do ERP
 
-A consulta de metadados do Firebird confirmou **65 tabelas `DEPxxx`** no banco.
+O levantamento realizado diretamente no Firebird confirmou **64 tabelas `DEPxxx`** no banco. O CSV exportado pelo DBeaver contém **750 campos** distribuídos nessas 64 tabelas.
 
 | Tabela | Campos |
 |---|---:|
@@ -101,6 +101,8 @@ A consulta de metadados do Firebird confirmou **65 tabelas `DEPxxx`** no banco.
 | DEP080 | 30 |
 | DEP083 | 5 |
 
+> **Correção:** levantamentos anteriores mencionaram 65 tabelas. O inventário efetivamente exportado pelo DBeaver contém **64 tabelas `DEPxxx`**. A documentação passa a considerar 64 até que uma nova consulta identifique alguma tabela não incluída no filtro.
+
 Além dessas, existem tabelas que **não pertencem ao ERP** e devem ficar fora da cópia ERP→`public`:
 
 - `METAS_VENDEDORES`
@@ -148,7 +150,7 @@ A consulta global de Foreign Keys encontrou somente FKs em `VENDEDORES_FILHOS`:
 - `FK_FILHOS_DEP013` → campo `DEP013`
 - `FK_FILHOS_PAI` → campo `VENDEDOR_PAI`
 
-Portanto, **não foram encontradas FKs físicas nas cinco tabelas críticas nem nas demais tabelas `DEPxxx` consultadas globalmente**. As relações comerciais do ERP são, em grande parte, relações lógicas mantidas pela aplicação.
+Portanto, **não foram encontradas FKs físicas nas tabelas `DEPxxx` no levantamento realizado**. As relações comerciais do ERP são, em grande parte, relações lógicas mantidas pela aplicação.
 
 ---
 
@@ -208,7 +210,7 @@ A descrição campo a campo ainda será levantada.
 
 **Índice secundário:** nenhum identificado.
 
-A estrutura física completa já foi levantada em parte; a descrição funcional de cada campo será consolidada após o inventário completo.
+A estrutura física completa foi incluída no levantamento de campos exportado pelo DBeaver; a descrição funcional de cada campo será consolidada após a interpretação do inventário.
 
 ---
 
@@ -310,20 +312,17 @@ A reconstrução do `public` deve preservar o schema `soselantes` e outras estru
 
 ## 12. Próxima etapa do levantamento
 
-O inventário de quantidade de campos das 65 tabelas está confirmado. A próxima extração deve levantar, para **todas as 65 `DEPxxx`**:
+O inventário de campos está confirmado para **64 tabelas `DEPxxx` / 750 campos**. A próxima extração deve levantar, para todas elas:
 
-1. campos e posições;
-2. tipos Firebird;
-3. tamanhos/precisão/escala;
-4. nulabilidade;
-5. PKs;
-6. índices;
-7. defaults;
-8. generators/sequences;
-9. triggers;
-10. constraints;
-11. domínios;
-12. descrições funcionais quando puderem ser confirmadas.
+1. PKs;
+2. FKs e tabelas referenciadas;
+3. índices e campos de cada índice;
+4. defaults;
+5. generators/sequences;
+6. triggers;
+7. constraints;
+8. domínios;
+9. descrições funcionais quando puderem ser confirmadas.
 
 Depois disso será produzido o mapa definitivo **Firebird → PostgreSQL/Supabase**.
 
